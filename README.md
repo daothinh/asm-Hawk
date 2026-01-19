@@ -5,6 +5,17 @@
 ## Tổng quan
 ASM-Hawk là giải pháp tự động hóa quá trình theo dõi, phân tích và đánh giá rủi ro cho các tài sản số công khai. Hệ thống giúp rút ngắn khoảng cách giữa việc phát hiện dữ liệu thô (OSINT) và xác thực khả năng bị tấn công thực tế, hỗ trợ đội ngũ bảo mật ưu tiên xử lý các mối đe dọa trọng yếu.
 
+## Tech Stack
+
+| Layer | Technology |
+|-------|------------|
+| Frontend | React/Next.js |
+| API | NestJS + Prisma |
+| Core Engine | Go |
+| TI Workers | Python |
+| Queue | Redis + BullMQ |
+| Database | PostgreSQL + ClickHouse |
+
 ## Tính năng trọng tâm
 - **Phát hiện tài sản (Discovery):** Tự động hóa việc mapping subdomain, IP và các tài sản số liên quan từ các nguồn dữ liệu công khai.
 - **Định danh chuyên sâu:** Sử dụng vân tay JARM và phân tích Service Fingerprinting để nhận diện sớm các hạ tầng nghi ngờ (C2, Phishing).
@@ -13,5 +24,8 @@ ASM-Hawk là giải pháp tự động hóa quá trình theo dõi, phân tích v
 - **Đánh giá rủi ro (Risk Scoring):** Mô hình tính điểm ưu tiên dựa trên sự tương quan giữa thông tin trinh sát nội bộ và dữ liệu Threat Intel bên ngoài.
 
 ## Documentation
+- [Kiến trúc hệ thống (Architecture)](docs/Architecture.md)
+- [Database Schema](docs/Database.md)
 - [Quy trình vận hành (Workflow)](docs/Workflow.md)
-- [Luồng thực thi hệ thống (Sequence)](docs/Sequence.md)
+- [Luồng thực thi (Sequence)](docs/Sequence.md)
+

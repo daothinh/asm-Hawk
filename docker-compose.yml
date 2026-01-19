@@ -1,0 +1,132 @@
+# ASM-Hawk Development Environment
+
+services:
+  # ===================
+  # Databases
+  # ===================
+  postgres:
+    image: postgres:16-alpine
+    container_name: asm-hawk-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: asm_hawk
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:24-alpine
+    container_name: asm-hawk-clickhouse
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8123/ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ===================
+  # Cache & Queue
+  # ===================
+  redis:
+    image: redis:7-alpine
+    container_name: asm-hawk-redis
+    command: redis-server /usr/local/etc/redis/redis.conf
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf
+      - redis_data:/data
+
+  # ===================
+  # Reverse Proxy
+  # ===================
+  nginx:
+    image: nginx:alpine
+    container_name: asm-hawk-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/conf.d:/etc/nginx/conf.d
+    depends_on:
+      - api
+      - web
+
+  # ===================
+  # Application Services
+  # ===================
+  api:
+    build:
+      context: ./api
+      dockerfile: ../docker/api.Dockerfile
+    container_name: asm-hawk-api
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/asm_hawk
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    volumes:
+      - ./api:/app
+      - /app/node_modules
+
+  scanner:
+    build:
+      context: ./scanner
+      dockerfile: ../docker/scanner.Dockerfile
+    container_name: asm-hawk-scanner
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - redis
+      - clickhouse
+
+  workers:
+    build:
+      context: ./workers
+      dockerfile: ../docker/workers.Dockerfile
+    container_name: asm-hawk-workers
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/asm_hawk
+      - VIRUSTOTAL_API_KEY=${VIRUSTOTAL_API_KEY}
+      - CENSYS_API_ID=${CENSYS_API_ID}
+      - CENSYS_API_SECRET=${CENSYS_API_SECRET}
+    depends_on:
+      - redis
+      - postgres
+
+  web:
+    build:
+      context: ./web
+      dockerfile: ../docker/web.Dockerfile
+    container_name: asm-hawk-web
+    environment:
+      - NEXT_PUBLIC_API_URL=http://api:3000
+    ports:
+      - "3001:3000"
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:
+  clickhouse_data:
+  redis_data:

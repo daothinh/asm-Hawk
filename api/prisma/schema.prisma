@@ -1,0 +1,225 @@
+// ASM-Hawk Database Schema
+// PostgreSQL with Prisma ORM (Prisma 7)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ===================
+// User Management
+// ===================
+
+enum Role {
+  ADMIN
+  ANALYST
+  VIEWER
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  passwordHash  String    @map("password_hash")
+  fullName      String?   @map("full_name")
+  role          Role      @default(VIEWER)
+  isActive      Boolean   @default(true) @map("is_active")
+  lastLoginAt   DateTime? @map("last_login_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  assets        Asset[]
+  searchHistory SearchHistory[]
+
+  @@map("users")
+}
+
+// ===================
+// Asset Management
+// ===================
+
+enum AssetType {
+  DOMAIN
+  SUBDOMAIN
+  IP
+  CNAME
+}
+
+enum AssetStatus {
+  ACTIVE
+  INACTIVE
+  SUSPICIOUS
+  CONFIRMED_MALICIOUS
+}
+
+model Asset {
+  id          String      @id @default(uuid())
+  domain      String
+  ipAddress   String?     @map("ip_address")
+  ipOwner     String?     @map("ip_owner")
+  assetType   AssetType   @default(DOMAIN) @map("asset_type")
+  status      AssetStatus @default(ACTIVE)
+  riskScore   Decimal     @default(0) @map("risk_score") @db.Decimal(5, 2)
+  firstSeenAt DateTime    @default(now()) @map("first_seen_at")
+  lastSeenAt  DateTime    @default(now()) @map("last_seen_at")
+  metadata    Json?
+
+  // Relations
+  createdById String?       @map("created_by_id")
+  createdBy   User?         @relation(fields: [createdById], references: [id])
+  reconResults ReconResult[]
+  attackResults AttackResult[]
+  externalIntels ExternalIntel[]
+  riskTags    RiskTag[]
+
+  @@unique([domain, ipAddress])
+  @@index([domain])
+  @@index([riskScore(sort: Desc)])
+  @@map("assets")
+}
+
+// ===================
+// Scan Results
+// ===================
+
+enum ScanType {
+  PORT_SCAN
+  SERVICE_DETECT
+  VULN_SCAN
+  JARM_FINGERPRINT
+}
+
+model ReconResult {
+  id              String    @id @default(uuid())
+  assetId         String    @map("asset_id")
+  scanType        ScanType  @map("scan_type")
+  port            Int?
+  protocol        String?
+  service         String?
+  version         String?
+  vulnerabilities Json?
+  rawOutput       Json?     @map("raw_output")
+  scannedAt       DateTime  @default(now()) @map("scanned_at")
+
+  // Relations
+  asset         Asset         @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  attackResults AttackResult[]
+
+  @@index([assetId, scannedAt])
+  @@map("recon_results")
+}
+
+// ===================
+// Attack Verification
+// ===================
+
+enum AttackResultStatus {
+  SUCCESS
+  FAILED
+  TIMEOUT
+  ERROR
+}
+
+model AttackResult {
+  id          String             @id @default(uuid())
+  assetId     String             @map("asset_id")
+  reconId     String?            @map("recon_id")
+  attackType  String             @map("attack_type")
+  payload     String?
+  result      AttackResultStatus
+  evidence    Json?
+  riskImpact  Decimal?           @map("risk_impact") @db.Decimal(5, 2)
+  executedAt  DateTime           @default(now()) @map("executed_at")
+
+  // Relations
+  asset       Asset        @relation(fields: [assetId], references: [id])
+  reconResult ReconResult? @relation(fields: [reconId], references: [id])
+
+  @@index([assetId, executedAt])
+  @@map("attack_results")
+}
+
+// ===================
+// Threat Intelligence
+// ===================
+
+enum IntelSource {
+  VIRUSTOTAL
+  URLSCAN
+  CENSYS
+  ABUSEIPDB
+  SHODAN
+}
+
+model ExternalIntel {
+  id              String      @id @default(uuid())
+  assetId         String      @map("asset_id")
+  source          IntelSource
+  queryHash       String      @map("query_hash")
+  responseData    Json        @map("response_data")
+  reputationScore Decimal?    @map("reputation_score") @db.Decimal(5, 2)
+  isMalicious     Boolean     @default(false) @map("is_malicious")
+  fetchedAt       DateTime    @default(now()) @map("fetched_at")
+  expiresAt       DateTime    @map("expires_at")
+
+  // Relations
+  asset Asset @relation(fields: [assetId], references: [id])
+
+  @@unique([assetId, source, queryHash])
+  @@index([expiresAt])
+  @@index([isMalicious])
+  @@map("external_intel")
+}
+
+// ===================
+// Risk Tags
+// ===================
+
+enum TagCategory {
+  C2
+  PHISHING
+  MALWARE
+  SUSPICIOUS
+  VERIFIED_CLEAN
+}
+
+model RiskTag {
+  id          String      @id @default(uuid())
+  assetId     String      @map("asset_id")
+  tagName     String      @map("tag_name")
+  tagCategory TagCategory @map("tag_category")
+  confidence  Decimal     @default(0) @db.Decimal(3, 2)
+  evidenceIds String[]    @map("evidence_ids")
+  createdAt   DateTime    @default(now()) @map("created_at")
+
+  // Relations
+  asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@unique([assetId, tagName])
+  @@index([tagName])
+  @@index([tagCategory])
+  @@map("risk_tags")
+}
+
+// ===================
+// Search History
+// ===================
+
+model SearchHistory {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  searchQuery  String   @map("search_query")
+  searchType   String?  @map("search_type")
+  resultsCount Int?     @map("results_count")
+  filters      Json?
+  searchedAt   DateTime @default(now()) @map("searched_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, searchedAt(sort: Desc)])
+  @@map("search_history")
+}
