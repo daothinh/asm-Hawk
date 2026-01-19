@@ -20,6 +20,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - asm-hawk-network
 
   clickhouse:
     image: clickhouse/clickhouse-server:24-alpine
@@ -34,6 +36,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - asm-hawk-network
 
   # ===================
   # Cache & Queue
@@ -47,6 +51,8 @@ services:
     volumes:
       - ./redis/redis.conf:/usr/local/etc/redis/redis.conf
       - redis_data:/data
+    networks:
+      - asm-hawk-network
 
   # ===================
   # Reverse Proxy
@@ -63,6 +69,8 @@ services:
     depends_on:
       - api
       - web
+    networks:
+      - asm-hawk-network
 
   # ===================
   # Application Services
@@ -86,18 +94,38 @@ services:
     volumes:
       - ./api:/app
       - /app/node_modules
+      - /var/run/docker.sock:/var/run/docker.sock
+      - temp_data:/tmp
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    networks:
+      - asm-hawk-network
 
   recon:
     build:
       context: ./recon
-      dockerfile: ../docker/recon.Dockerfile
+      dockerfile: Dockerfile
     container_name: asm-hawk-recon
     environment:
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/asm_hawk
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+    ports:
+      - "8443:8443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - temp_data:/tmp
     depends_on:
-      - redis
-      - clickhouse
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    networks:
+      - asm-hawk-network
 
   workers:
     build:
@@ -113,6 +141,8 @@ services:
     depends_on:
       - redis
       - postgres
+    networks:
+      - asm-hawk-network
 
   web:
     build:
@@ -125,8 +155,187 @@ services:
       - "3001:3000"
     depends_on:
       - api
+    networks:
+      - asm-hawk-network
+
+  # ===================
+  # Recon Tools (Phase 2)
+  # ===================
+  subfinder:
+    build: ./docker/subfinder
+    container_name: asm-hawk-subfinder
+    entrypoint: ["sleep", "infinity"]
+    restart: "no"
+    networks:
+      - asm-hawk-network
+
+  httpx:
+    build: ./docker/httpx
+    container_name: asm-hawk-httpx
+    volumes:
+      - temp_data:/tmp
+    entrypoint: ["sleep", "infinity"]
+    restart: "no"
+    networks:
+      - asm-hawk-network
+
+  nuclei:
+    build: ./docker/nuclei
+    container_name: asm-hawk-nuclei
+    volumes:
+      - temp_data:/tmp
+    entrypoint: ["sleep", "infinity"]
+    shm_size: '2g'
+    restart: "no"
+    networks:
+      - asm-hawk-network
+
+  katana:
+    build:
+      context: ./docker/katana
+      dockerfile: Dockerfile
+    container_name: asm-hawk-katana
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 512M
+    volumes:
+      - temp_data:/tmp
+    entrypoint: ["sleep", "infinity"]
+    restart: unless-stopped
+    networks:
+      - asm-hawk-network
+
+  dnsx:
+    build: ./docker/dnsx
+    container_name: asm-hawk-dnsx
+    entrypoint: ["sleep", "infinity"]
+    restart: "no"
+    networks:
+      - asm-hawk-network
+
+  ffuf:
+    build: ./docker/ffuf
+    container_name: asm-hawk-ffuf
+    volumes:
+      - ./wordlists:/wordlists
+    entrypoint: ["sleep", "infinity"]
+    restart: "no"
+    networks:
+      - asm-hawk-network
+
+  gospider:
+    build:
+      context: .
+      dockerfile: docker/gospider/Dockerfile
+    container_name: asm-hawk-gospider
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '2'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
+    entrypoint: ["sleep", "infinity"]
+    restart: "no"
+    networks:
+      - asm-hawk-network
+
+  waybackurls:
+    build: ./docker/waybackurls
+    container_name: asm-hawk-waybackurls
+    entrypoint: ["sleep", "infinity"]
+    restart: "no"
+    networks:
+      - asm-hawk-network
+
+  shuffledns:
+    build: ./docker/shuffledns
+    container_name: asm-hawk-shuffledns
+    volumes:
+      - ./docker/shuffledns/wordlists:/app/wordlists
+    entrypoint: ["sleep", "infinity"]
+    restart: "no"
+    networks:
+      - asm-hawk-network
+
+  cewl:
+    build: ./docker/cewl
+    container_name: asm-hawk-cewl
+    entrypoint: ["sleep", "infinity"]
+    restart: "no"
+    networks:
+      - asm-hawk-network
+
+  assetfinder:
+    build: ./docker/assetfinder
+    container_name: asm-hawk-assetfinder
+    entrypoint: ["sleep", "infinity"]
+    restart: "no"
+    networks:
+      - asm-hawk-network
+
+  metabigor:
+    build: ./docker/metabigor
+    container_name: asm-hawk-metabigor
+    entrypoint: ["sleep", "infinity"]
+    restart: "no"
+    networks:
+      - asm-hawk-network
+
+  sublist3r:
+    build: ./docker/sublist3r
+    container_name: asm-hawk-sublist3r
+    entrypoint: ["sleep", "infinity"]
+    restart: "no"
+    networks:
+      - asm-hawk-network
+
+  subdomainizer:
+    build:
+      context: .
+      dockerfile: docker/subdomainizer/Dockerfile
+    container_name: asm-hawk-subdomainizer
+    entrypoint: ["sleep", "infinity"]
+    restart: "no"
+    networks:
+      - asm-hawk-network
+
+  github-recon:
+    build: ./docker/github-recon
+    container_name: asm-hawk-github-recon
+    entrypoint: ["sleep", "infinity"]
+    restart: "no"
+    networks:
+      - asm-hawk-network
+
+  cloud_enum:
+    build:
+      context: .
+      dockerfile: docker/cloud_enum/Dockerfile
+    container_name: asm-hawk-cloud-enum
+    entrypoint: ["sleep", "infinity"]
+    restart: "no"
+    networks:
+      - asm-hawk-network
+
+  linkfinder:
+    build: ./docker/linkfinder
+    container_name: asm-hawk-linkfinder
+    entrypoint: ["sleep", "infinity"]
+    restart: "no"
+    networks:
+      - asm-hawk-network
 
 volumes:
   postgres_data:
   clickhouse_data:
   redis_data:
+  temp_data:
+
+networks:
+  asm-hawk-network:
+    driver: bridge

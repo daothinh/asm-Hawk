@@ -5,6 +5,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { AssetsModule } from './modules/assets/assets.module';
+import { ScansModule } from './modules/scans/scans.module';
 import { AppController } from './app.controller';
 
 @Module({
@@ -25,6 +26,7 @@ import { AppController } from './app.controller';
     AuthModule,
     UsersModule,
     AssetsModule,
+    ScansModule,
   ],
   controllers: [AppController],
 })

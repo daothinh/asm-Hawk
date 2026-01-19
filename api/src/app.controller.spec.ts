@@ -1,6 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AppController } from './app.controller';
-import { AppService } from './app.service';
 
 describe('AppController', () => {
   let appController: AppController;
@@ -8,15 +7,19 @@ describe('AppController', () => {
   beforeEach(async () => {
     const app: TestingModule = await Test.createTestingModule({
       controllers: [AppController],
-      providers: [AppService],
     }).compile();
 
     appController = app.get<AppController>(AppController);
   });
 
-  describe('root', () => {
-    it('should return "Hello World!"', () => {
-      expect(appController.getHello()).toBe('Hello World!');
+  describe('getHealth', () => {
+    it('should return health check response', () => {
+      const result = appController.getHealth();
+      expect(result).toHaveProperty('name', 'ASM-Hawk API');
+      expect(result).toHaveProperty('version', '1.0.0');
+      expect(result).toHaveProperty('status', 'healthy');
+      expect(result).toHaveProperty('timestamp');
+      expect(result).toHaveProperty('endpoints');
     });
   });
 });

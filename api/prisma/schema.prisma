@@ -74,6 +74,7 @@ model Asset {
   attackResults AttackResult[]
   externalIntels ExternalIntel[]
   riskTags    RiskTag[]
+  scans       Scan[]
 
   @@unique([domain, ipAddress])
   @@index([domain])
@@ -222,4 +223,1317 @@ model SearchHistory {
 
   @@index([userId, searchedAt(sort: Desc)])
   @@map("search_history")
+}
+
+// ===================
+// Scan Management (Phase 2)
+// ===================
+
+enum ReconToolType {
+  SUBFINDER
+  HTTPX
+  NUCLEI
+  KATANA
+  DNSX
+  FFUF
+  GOSPIDER
+  WAYBACKURLS
+  SHUFFLEDNS
+  CEWL
+  ASSETFINDER
+  METABIGOR
+  SUBLIST3R
+  SUBDOMAINIZER
+  GITHUB_RECON
+  CLOUD_ENUM
+  LINKFINDER
+}
+
+enum ScanJobStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+model Scan {
+  id            String         @id @default(uuid())
+  assetId       String         @map("asset_id")
+  toolType      ReconToolType  @map("tool_type")
+  status        ScanJobStatus  @default(PENDING)
+  command       String?
+  stdout        String?        @db.Text
+  stderr        String?        @db.Text
+  executionTime String?        @map("execution_time")
+  startedAt     DateTime?      @map("started_at")
+  completedAt   DateTime?      @map("completed_at")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+
+  // Relations
+  asset       Asset        @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  scanResults ScanResult[]
+
+  @@index([assetId, toolType])
+  @@index([status])
+  @@index([createdAt(sort: Desc)])
+  @@map("scans")
+}
+
+model ScanResult {
+  id         String   @id @default(uuid())
+  scanId     String   @map("scan_id")
+  resultType String   @map("result_type")
+  data       Json
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  // Relations
+  scan Scan @relation(fields: [scanId], references: [id], onDelete: Cascade)
+
+  @@index([scanId])
+  @@map("scan_results")
+}
+
+model ScanSettings {
+  id                    Int      @id @default(1)
+  subfinderRateLimit    Int      @default(20) @map("subfinder_rate_limit")
+  httpxRateLimit        Int      @default(150) @map("httpx_rate_limit")
+  nucleiRateLimit       Int      @default(100) @map("nuclei_rate_limit")
+  katanaRateLimit       Int      @default(50) @map("katana_rate_limit")
+  dnsxRateLimit         Int      @default(100) @map("dnsx_rate_limit")
+  ffufRateLimit         Int      @default(100) @map("ffuf_rate_limit")
+  gospiderRateLimit     Int      @default(5) @map("gospider_rate_limit")
+  shufflednsRateLimit   Int      @default(10000) @map("shuffledns_rate_limit")
+  customUserAgent       String?  @map("custom_user_agent")
+  customHeader          String?  @map("custom_header")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  @@map("scan_settings")
+}
+
+// ===================
+// Scope Targets (Engine Integration)
+// ===================
+
+enum ScopeTargetType {
+  COMPANY
+  WILDCARD
+  URL
+}
+
+enum ScopeMode {
+  PASSIVE
+  ACTIVE
+}
+
+// Maps to engine's scope_targets table
+model ScopeTarget {
+  id          String          @id @default(uuid())
+  type        ScopeTargetType
+  mode        ScopeMode       @default(PASSIVE)
+  scopeTarget String          @map("scope_target")
+  active      Boolean         @default(false)
+  createdAt   DateTime        @default(now()) @map("created_at")
+
+  // Relations - Core
+  autoScanSessions AutoScanSession[]
+  autoScanState    AutoScanState?
+  targetUrls       TargetUrl[]
+  userAccess       UserScopeAccess[]
+
+  // Relations - Scan Tables
+  amassScans               AmassScan[]
+  amassIntelScans          AmassIntelScan[]
+  httpxScans               HttpxScan[]
+  gauScans                 GauScan[]
+  sublist3rScans           Sublist3rScan[]
+  assetfinderScans         AssetfinderScan[]
+  ctlScans                 CtlScan[]
+  subfinderScans           SubfinderScan[]
+  shuffleDnsScans          ShuffleDnsScan[]
+  cewlScans                CewlScan[]
+  gospiderScans            GospiderScan[]
+  subdomainizerScans       SubdomainizerScan[]
+  nucleiScreenshots        NucleiScreenshot[]
+  metadataScans            MetadataScan[]
+  cloudEnumScans           CloudEnumScan[]
+  metabigorCompanyScans    MetabigorCompanyScan[]
+  gitHubReconScans         GitHubReconScan[]
+  shodanCompanyScans       ShodanCompanyScan[]
+  censysCompanyScans       CensysCompanyScan[]
+  securityTrailsCompanyScans SecurityTrailsCompanyScan[]
+  
+  // Relations - IP/Port and Nuclei
+  ipPortScans              IpPortScan[]
+  nucleiScans              NucleiScan[]
+  nucleiConfig             NucleiConfig?
+  
+  // Relations - URL Workflow Scans
+  katanaUrlScans           KatanaUrlScan[]
+  linkFinderUrlScans       LinkFinderUrlScan[]
+  waybackUrlsScans         WaybackUrlsScan[]
+  gauUrlScans              GauUrlScan[]
+  ffufUrlScans             FfufUrlScan[]
+  ffufConfig               FfufConfig?
+  
+  // Relations - Consolidated Results
+  consolidatedSubdomains    ConsolidatedSubdomain[]
+  consolidatedCompanyDomains ConsolidatedCompanyDomain[]
+  consolidatedNetworkRanges ConsolidatedNetworkRange[]
+  consolidatedAttackSurfaceAssets ConsolidatedAttackSurfaceAsset[]
+  
+  // Relations - Notes & Threat Model
+  threatModels             ThreatModel[]
+  notableObjects           NotableObject[]
+  securityControlNotes     SecurityControlNote[]
+  applicationQuestions     ApplicationQuestion[]
+  mechanismExamples        MechanismExample[]
+  googleDorkingDomains     GoogleDorkingDomain[]
+  reverseWhoisDomains      ReverseWhoisDomain[]
+
+  @@map("scope_targets")
+}
+
+// Maps to engine's auto_scan_sessions table
+model AutoScanSession {
+  id                         String    @id @default(uuid())
+  scopeTargetId              String    @map("scope_target_id")
+  configSnapshot             Json      @map("config_snapshot")
+  status                     String    @default("pending")
+  startedAt                  DateTime  @default(now()) @map("started_at")
+  endedAt                    DateTime? @map("ended_at")
+  stepsRun                   Json?     @map("steps_run")
+  errorMessage               String?   @map("error_message")
+  finalConsolidatedSubdomains Int?     @map("final_consolidated_subdomains")
+  finalLiveWebServers        Int?      @map("final_live_web_servers")
+
+  // Relations
+  scopeTarget ScopeTarget @relation(fields: [scopeTargetId], references: [id], onDelete: Cascade)
+
+  @@map("auto_scan_sessions")
+}
+
+// Maps to engine's target_urls table
+model TargetUrl {
+  id              String    @id @default(uuid())
+  url             String
+  screenshot      String?
+  statusCode      Int?      @map("status_code")
+  title           String?
+  webServer       String?   @map("web_server")
+  technologies    String[]
+  contentLength   Int?      @map("content_length")
+  newlyDiscovered Boolean   @default(false) @map("newly_discovered")
+  noLongerLive    Boolean   @default(false) @map("no_longer_live")
+  scopeTargetId   String?   @map("scope_target_id")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  
+  // SSL/TLS findings
+  hasDeprecatedTls  Boolean @default(false) @map("has_deprecated_tls")
+  hasExpiredSsl     Boolean @default(false) @map("has_expired_ssl")
+  hasMismatchedSsl  Boolean @default(false) @map("has_mismatched_ssl")
+  hasSelfSignedSsl  Boolean @default(false) @map("has_self_signed_ssl")
+  
+  // Additional data
+  findingsJson      Json?   @map("findings_json")
+  httpResponseHeaders Json? @map("http_response_headers")
+  katanaResults     Json?   @map("katana_results")
+  ffufResults       Json?   @map("ffuf_results")
+  roiScore          Int     @default(50) @map("roi_score")
+  ipAddress         String? @map("ip_address")
+
+  // Relations
+  scopeTarget ScopeTarget? @relation(fields: [scopeTargetId], references: [id], onDelete: Cascade)
+
+  @@unique([url, scopeTargetId])
+  @@index([scopeTargetId])
+  @@map("target_urls")
+}
+
+// ===================
+// User Permissions & Access Control
+// ===================
+
+enum SearchPermissionType {
+  ALL_SCOPES           // Can search across all scope targets
+  ASSIGNED_SCOPES      // Can only search within assigned scopes
+  READ_ONLY            // Can only view, no search actions
+  CUSTOM               // Custom rules defined in searchRules
+}
+
+// User's search and access permissions
+model UserSearchPermission {
+  id               String               @id @default(uuid())
+  userId           String               @unique @map("user_id")
+  permissionType   SearchPermissionType @default(ASSIGNED_SCOPES) @map("permission_type")
+  canRunScans      Boolean              @default(false) @map("can_run_scans")
+  canExportData    Boolean              @default(false) @map("can_export_data")
+  canViewSensitive Boolean              @default(false) @map("can_view_sensitive")
+  maxScansPerDay   Int                  @default(10) @map("max_scans_per_day")
+  searchRules      Json?                @map("search_rules")  // Custom rules in JSON
+  createdAt        DateTime             @default(now()) @map("created_at")
+  updatedAt        DateTime             @updatedAt @map("updated_at")
+
+  @@map("user_search_permissions")
+}
+
+// Maps users to specific scope targets they can access
+model UserScopeAccess {
+  id            String      @id @default(uuid())
+  userId        String      @map("user_id")
+  scopeTargetId String      @map("scope_target_id")
+  canRead       Boolean     @default(true) @map("can_read")
+  canWrite      Boolean     @default(false) @map("can_write")
+  canRunScans   Boolean     @default(false) @map("can_run_scans")
+  canDelete     Boolean     @default(false) @map("can_delete")
+  grantedAt     DateTime    @default(now()) @map("granted_at")
+  grantedById   String?     @map("granted_by_id")
+
+  // Relations
+  scopeTarget ScopeTarget @relation(fields: [scopeTargetId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, scopeTargetId])
+  @@index([userId])
+  @@map("user_scope_access")
+}
+// Engine Schema - Scan Tables and Config Tables
+// This file is appended to main schema.prisma
+
+// ===================
+// Engine Configuration Tables
+// ===================
+
+model UserSettings {
+  id                       String   @id @default(uuid())
+  amassRateLimit           Int      @default(10) @map("amass_rate_limit")
+  httpxRateLimit           Int      @default(150) @map("httpx_rate_limit")
+  subfinderRateLimit       Int      @default(20) @map("subfinder_rate_limit")
+  gauRateLimit             Int      @default(10) @map("gau_rate_limit")
+  sublist3rRateLimit       Int      @default(10) @map("sublist3r_rate_limit")
+  ctlRateLimit             Int      @default(10) @map("ctl_rate_limit")
+  shufflednsRateLimit      Int      @default(10000) @map("shuffledns_rate_limit")
+  cewlRateLimit            Int      @default(10) @map("cewl_rate_limit")
+  gospiderRateLimit        Int      @default(5) @map("gospider_rate_limit")
+  subdomainizerRateLimit   Int      @default(5) @map("subdomainizer_rate_limit")
+  nucleiScreenshotRateLimit Int     @default(20) @map("nuclei_screenshot_rate_limit")
+  customUserAgent          String?  @map("custom_user_agent")
+  customHeader             String?  @map("custom_header")
+  burpProxyIp              String   @default("127.0.0.1") @map("burp_proxy_ip")
+  burpProxyPort            Int      @default(8080) @map("burp_proxy_port")
+  burpApiIp                String   @default("127.0.0.1") @map("burp_api_ip")
+  burpApiPort              Int      @default(1337) @map("burp_api_port")
+  burpApiKey               String   @default("") @map("burp_api_key")
+  createdAt                DateTime @default(now()) @map("created_at")
+  updatedAt                DateTime @default(now()) @map("updated_at")
+
+  @@map("user_settings")
+}
+
+model ApiKey {
+  id          String   @id @default(uuid())
+  toolName    String   @map("tool_name")
+  apiKeyName  String   @map("api_key_name")
+  apiKeyValue String   @map("api_key_value")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @map("updated_at")
+
+  @@unique([toolName, apiKeyName])
+  @@map("api_keys")
+}
+
+model AiApiKey {
+  id          String   @id @default(uuid())
+  provider    String
+  apiKeyName  String   @map("api_key_name")
+  keyValues   Json     @map("key_values")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @map("updated_at")
+
+  @@unique([provider, apiKeyName])
+  @@map("ai_api_keys")
+}
+
+model AutoScanConfig {
+  id                        String   @id @default(uuid())
+  amass                     Boolean  @default(true)
+  sublist3r                 Boolean  @default(true)
+  assetfinder               Boolean  @default(true)
+  gau                       Boolean  @default(true)
+  ctl                       Boolean  @default(true)
+  subfinder                 Boolean  @default(true)
+  consolidateHttpxRound1    Boolean  @default(true) @map("consolidate_httpx_round1")
+  shuffledns                Boolean  @default(true)
+  cewl                      Boolean  @default(true)
+  consolidateHttpxRound2    Boolean  @default(true) @map("consolidate_httpx_round2")
+  gospider                  Boolean  @default(true)
+  subdomainizer             Boolean  @default(true)
+  consolidateHttpxRound3    Boolean  @default(true) @map("consolidate_httpx_round3")
+  nucleiScreenshot          Boolean  @default(true) @map("nuclei_screenshot")
+  metadata                  Boolean  @default(true)
+  maxConsolidatedSubdomains Int      @default(2500) @map("max_consolidated_subdomains")
+  maxLiveWebServers         Int      @default(500) @map("max_live_web_servers")
+  createdAt                 DateTime @default(now()) @map("created_at")
+  updatedAt                 DateTime @default(now()) @map("updated_at")
+
+  @@map("auto_scan_config")
+}
+
+model AutoScanState {
+  id            String      @id @default(uuid())
+  scopeTargetId String      @unique @map("scope_target_id")
+  currentStep   String      @map("current_step")
+  isPaused      Boolean     @default(false) @map("is_paused")
+  isCancelled   Boolean     @default(false) @map("is_cancelled")
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @default(now()) @map("updated_at")
+
+  scopeTarget   ScopeTarget @relation(fields: [scopeTargetId], references: [id], onDelete: Cascade)
+
+  @@map("auto_scan_state")
+}
+
+// ===================
+// Base Scan Model (Abstract pattern for all scan tables)
+// ===================
+
+model AmassScan {
+  id                String           @id @default(uuid())
+  scanId            String           @unique @map("scan_id")
+  domain            String
+  status            String
+  result            String?          @db.Text
+  error             String?          @db.Text
+  stdout            String?          @db.Text
+  stderr            String?          @db.Text
+  command           String?          @db.Text
+  executionTime     String?          @map("execution_time")
+  createdAt         DateTime         @default(now()) @map("created_at")
+  scopeTargetId     String?          @map("scope_target_id")
+  autoScanSessionId String?          @map("auto_scan_session_id")
+
+  scopeTarget       ScopeTarget?     @relation(fields: [scopeTargetId], references: [id], onDelete: Cascade)
+
+  @@map("amass_scans")
+}
+
+model AmassIntelScan {
+  id                String       @id @default(uuid())
+  scanId            String       @unique @map("scan_id")
+  companyName       String       @map("company_name")
+  status            String
+  result            String?      @db.Text
+  error             String?      @db.Text
+  stdout            String?      @db.Text
+  stderr            String?      @db.Text
+  command           String?      @db.Text
+  executionTime     String?      @map("execution_time")
+  createdAt         DateTime     @default(now()) @map("created_at")
+  scopeTargetId     String?      @map("scope_target_id")
+  autoScanSessionId String?      @map("auto_scan_session_id")
+
+  scopeTarget       ScopeTarget? @relation(fields: [scopeTargetId], references: [id], onDelete: Cascade)
+
+  @@map("amass_intel_scans")
+}
+
+model HttpxScan {
+  id                String       @id @default(uuid())
+  scanId            String       @unique @map("scan_id")
+  domain            String
+  status            String
+  result            String?      @db.Text
+  error             String?      @db.Text
+  stdout            String?      @db.Text
+  stderr            String?      @db.Text
+  command           String?      @db.Text
+  executionTime     String?      @map("execution_time")
+  createdAt         DateTime     @default(now()) @map("created_at")
+  scopeTargetId     String?      @map("scope_target_id")
+  autoScanSessionId String?      @map("auto_scan_session_id")
+
+  scopeTarget       ScopeTarget? @relation(fields: [scopeTargetId], references: [id], onDelete: Cascade)
+
+  @@map("httpx_scans")
+}
+
+model GauScan {
+  id                String       @id @default(uuid())
+  scanId            String       @unique @map("scan_id")
+  domain            String
+  status            String
+  result            String?      @db.Text
+  error             String?      @db.Text
+  stdout            String?      @db.Text
+  stderr            String?      @db.Text
+  command           String?      @db.Text
+  executionTime     String?      @map("execution_time")
+  createdAt         DateTime     @default(now()) @map("created_at")
+  scopeTargetId     String?      @map("scope_target_id")
+  autoScanSessionId String?      @map("auto_scan_session_id")
+
+  scopeTarget       ScopeTarget? @relation(fields: [scopeTargetId], references: [id], onDelete: Cascade)
+
+  @@map("gau_scans")
+}
+
+model Sublist3rScan {
+  id                String       @id @default(uuid())
+  scanId            String       @unique @map("scan_id")
+  domain            String
+  status            String
+  result            String?      @db.Text
+  error             String?      @db.Text
+  stdout            String?      @db.Text
+  stderr            String?      @db.Text
+  command           String?      @db.Text
+  executionTime     String?      @map("execution_time")
+  createdAt         DateTime     @default(now()) @map("created_at")
+  scopeTargetId     String?      @map("scope_target_id")
+  autoScanSessionId String?      @map("auto_scan_session_id")
+
+  scopeTarget       ScopeTarget? @relation(fields: [scopeTargetId], references: [id], onDelete: Cascade)
+
+  @@map("sublist3r_scans")
+}
+
+model AssetfinderScan {
+  id                String       @id @default(uuid())
+  scanId            String       @unique @map("scan_id")
+  domain            String
+  status            String
+  result            String?      @db.Text
+  error             String?      @db.Text
+  stdout            String?      @db.Text
+  stderr            String?      @db.Text
+  command           String?      @db.Text
+  executionTime     String?      @map("execution_time")
+  createdAt         DateTime     @default(now()) @map("created_at")
+  scopeTargetId     String?      @map("scope_target_id")
+  autoScanSessionId String?      @map("auto_scan_session_id")
+
+  scopeTarget       ScopeTarget? @relation(fields: [scopeTargetId], references: [id], onDelete: Cascade)
+
+  @@map("assetfinder_scans")
+}
+
+model CtlScan {
+  id                String       @id @default(uuid())
+  scanId            String       @unique @map("scan_id")
+  domain            String
+  status            String
+  result            String?      @db.Text
+  error             String?      @db.Text
+  stdout            String?      @db.Text
+  stderr            String?      @db.Text
+  command           String?      @db.Text
+  executionTime     String?      @map("execution_time")
+  createdAt         DateTime     @default(now()) @map("created_at")
+  scopeTargetId     String?      @map("scope_target_id")
+  autoScanSessionId String?      @map("auto_scan_session_id")
+
+  scopeTarget       ScopeTarget? @relation(fields: [scopeTargetId], references: [id], onDelete: Cascade)
+
+  @@map("ctl_scans")
+}
+
+model SubfinderScan {
+  id                String       @id @default(uuid())
+  scanId            String       @unique @map("scan_id")
+  domain            String
+  status            String
+  result            String?      @db.Text
+  error             String?      @db.Text
+  stdout            String?      @db.Text
+  stderr            String?      @db.Text
+  command           String?      @db.Text
+  executionTime     String?      @map("execution_time")
+  createdAt         DateTime     @default(now()) @map("created_at")
+  scopeTargetId     String?      @map("scope_target_id")
+  autoScanSessionId String?      @map("auto_scan_session_id")
+
+  scopeTarget       ScopeTarget? @relation(fields: [scopeTargetId], references: [id], onDelete: Cascade)
+
+  @@map("subfinder_scans")
+}
+
+model ShuffleDnsScan {
+  id                String       @id @default(uuid())
+  scanId            String       @unique @map("scan_id")
+  domain            String
+  status            String
+  result            String?      @db.Text
+  error             String?      @db.Text
+  stdout            String?      @db.Text
+  stderr            String?      @db.Text
+  command           String?      @db.Text
+  executionTime     String?      @map("execution_time")
+  createdAt         DateTime     @default(now()) @map("created_at")
+  scopeTargetId     String?      @map("scope_target_id")
+  autoScanSessionId String?      @map("auto_scan_session_id")
+
+  scopeTarget       ScopeTarget? @relation(fields: [scopeTargetId], references: [id], onDelete: Cascade)
+
+  @@map("shuffledns_scans")
+}
+
+model CewlScan {
+  id                String       @id @default(uuid())
+  scanId            String       @unique @map("scan_id")
+  url               String
+  status            String
+  result            String?      @db.Text
+  error             String?      @db.Text
+  stdout            String?      @db.Text
+  stderr            String?      @db.Text
+  command           String?      @db.Text
+  executionTime     String?      @map("execution_time")
+  createdAt         DateTime     @default(now()) @map("created_at")
+  scopeTargetId     String?      @map("scope_target_id")
+  autoScanSessionId String?      @map("auto_scan_session_id")
+
+  scopeTarget       ScopeTarget? @relation(fields: [scopeTargetId], references: [id], onDelete: Cascade)
+
+  @@map("cewl_scans")
+}
+
+model GospiderScan {
+  id                String       @id @default(uuid())
+  scanId            String       @unique @map("scan_id")
+  domain            String
+  status            String
+  result            String?      @db.Text
+  error             String?      @db.Text
+  stdout            String?      @db.Text
+  stderr            String?      @db.Text
+  command           String?      @db.Text
+  executionTime     String?      @map("execution_time")
+  createdAt         DateTime     @default(now()) @map("created_at")
+  scopeTargetId     String?      @map("scope_target_id")
+  autoScanSessionId String?      @map("auto_scan_session_id")
+
+  scopeTarget       ScopeTarget? @relation(fields: [scopeTargetId], references: [id], onDelete: Cascade)
+
+  @@map("gospider_scans")
+}
+
+model SubdomainizerScan {
+  id                String       @id @default(uuid())
+  scanId            String       @unique @map("scan_id")
+  domain            String
+  status            String
+  result            String?      @db.Text
+  error             String?      @db.Text
+  stdout            String?      @db.Text
+  stderr            String?      @db.Text
+  command           String?      @db.Text
+  executionTime     String?      @map("execution_time")
+  createdAt         DateTime     @default(now()) @map("created_at")
+  scopeTargetId     String?      @map("scope_target_id")
+  autoScanSessionId String?      @map("auto_scan_session_id")
+
+  scopeTarget       ScopeTarget? @relation(fields: [scopeTargetId], references: [id], onDelete: Cascade)
+
+  @@map("subdomainizer_scans")
+}
+
+model NucleiScreenshot {
+  id                String       @id @default(uuid())
+  scanId            String       @unique @map("scan_id")
+  domain            String
+  status            String
+  result            String?      @db.Text
+  error             String?      @db.Text
+  stdout            String?      @db.Text
+  stderr            String?      @db.Text
+  command           String?      @db.Text
+  executionTime     String?      @map("execution_time")
+  createdAt         DateTime     @default(now()) @map("created_at")
+  scopeTargetId     String?      @map("scope_target_id")
+  autoScanSessionId String?      @map("auto_scan_session_id")
+
+  scopeTarget       ScopeTarget? @relation(fields: [scopeTargetId], references: [id], onDelete: Cascade)
+
+  @@map("nuclei_screenshots")
+}
+
+model MetadataScan {
+  id                String       @id @default(uuid())
+  scanId            String       @unique @map("scan_id")
+  domain            String
+  status            String
+  result            String?      @db.Text
+  error             String?      @db.Text
+  stdout            String?      @db.Text
+  stderr            String?      @db.Text
+  command           String?      @db.Text
+  executionTime     String?      @map("execution_time")
+  createdAt         DateTime     @default(now()) @map("created_at")
+  scopeTargetId     String?      @map("scope_target_id")
+  autoScanSessionId String?      @map("auto_scan_session_id")
+  config            Json?
+
+  scopeTarget       ScopeTarget? @relation(fields: [scopeTargetId], references: [id], onDelete: Cascade)
+
+  @@map("metadata_scans")
+}
+
+model CloudEnumScan {
+  id                String       @id @default(uuid())
+  scanId            String       @unique @map("scan_id")
+  companyName       String       @map("company_name")
+  status            String
+  result            String?      @db.Text
+  error             String?      @db.Text
+  stdout            String?      @db.Text
+  stderr            String?      @db.Text
+  command           String?      @db.Text
+  executionTime     String?      @map("execution_time")
+  createdAt         DateTime     @default(now()) @map("created_at")
+  scopeTargetId     String?      @map("scope_target_id")
+  autoScanSessionId String?      @map("auto_scan_session_id")
+
+  scopeTarget       ScopeTarget? @relation(fields: [scopeTargetId], references: [id], onDelete: Cascade)
+
+  @@map("cloud_enum_scans")
+}
+
+model MetabigorCompanyScan {
+  id                String       @id @default(uuid())
+  scanId            String       @unique @map("scan_id")
+  companyName       String       @map("company_name")
+  status            String
+  result            String?      @db.Text
+  error             String?      @db.Text
+  stdout            String?      @db.Text
+  stderr            String?      @db.Text
+  command           String?      @db.Text
+  executionTime     String?      @map("execution_time")
+  createdAt         DateTime     @default(now()) @map("created_at")
+  scopeTargetId     String?      @map("scope_target_id")
+  autoScanSessionId String?      @map("auto_scan_session_id")
+
+  scopeTarget       ScopeTarget? @relation(fields: [scopeTargetId], references: [id], onDelete: Cascade)
+
+  @@map("metabigor_company_scans")
+}
+
+model GitHubReconScan {
+  id                String       @id @default(uuid())
+  scanId            String       @unique @map("scan_id")
+  companyName       String       @map("company_name")
+  status            String
+  result            String?      @db.Text
+  error             String?      @db.Text
+  stdout            String?      @db.Text
+  stderr            String?      @db.Text
+  command           String?      @db.Text
+  executionTime     String?      @map("execution_time")
+  createdAt         DateTime     @default(now()) @map("created_at")
+  scopeTargetId     String?      @map("scope_target_id")
+  autoScanSessionId String?      @map("auto_scan_session_id")
+
+  scopeTarget       ScopeTarget? @relation(fields: [scopeTargetId], references: [id], onDelete: Cascade)
+
+  @@map("github_recon_scans")
+}
+
+model ShodanCompanyScan {
+  id                String       @id @default(uuid())
+  scanId            String       @unique @map("scan_id")
+  companyName       String       @map("company_name")
+  status            String
+  result            String?      @db.Text
+  error             String?      @db.Text
+  stdout            String?      @db.Text
+  stderr            String?      @db.Text
+  command           String?      @db.Text
+  executionTime     String?      @map("execution_time")
+  createdAt         DateTime     @default(now()) @map("created_at")
+  scopeTargetId     String?      @map("scope_target_id")
+  autoScanSessionId String?      @map("auto_scan_session_id")
+
+  scopeTarget       ScopeTarget? @relation(fields: [scopeTargetId], references: [id], onDelete: Cascade)
+
+  @@map("shodan_company_scans")
+}
+
+model CensysCompanyScan {
+  id                String       @id @default(uuid())
+  scanId            String       @unique @map("scan_id")
+  companyName       String       @map("company_name")
+  status            String
+  result            String?      @db.Text
+  error             String?      @db.Text
+  stdout            String?      @db.Text
+  stderr            String?      @db.Text
+  command           String?      @db.Text
+  executionTime     String?      @map("execution_time")
+  createdAt         DateTime     @default(now()) @map("created_at")
+  scopeTargetId     String?      @map("scope_target_id")
+  autoScanSessionId String?      @map("auto_scan_session_id")
+
+  scopeTarget       ScopeTarget? @relation(fields: [scopeTargetId], references: [id], onDelete: Cascade)
+
+  @@map("censys_company_scans")
+}
+
+model SecurityTrailsCompanyScan {
+  id                String       @id @default(uuid())
+  scanId            String       @unique @map("scan_id")
+  companyName       String       @map("company_name")
+  status            String
+  result            String?      @db.Text
+  error             String?      @db.Text
+  stdout            String?      @db.Text
+  stderr            String?      @db.Text
+  command           String?      @db.Text
+  executionTime     String?      @map("execution_time")
+  createdAt         DateTime     @default(now()) @map("created_at")
+  scopeTargetId     String?      @map("scope_target_id")
+  autoScanSessionId String?      @map("auto_scan_session_id")
+
+  scopeTarget       ScopeTarget? @relation(fields: [scopeTargetId], references: [id], onDelete: Cascade)
+
+  @@map("securitytrails_company_scans")
+}
+
+// ===================
+// IP Port Scanning
+// ===================
+
+model IpPortScan {
+  id                     String       @id @default(uuid())
+  scanId                 String       @unique @map("scan_id")
+  scopeTargetId          String?      @map("scope_target_id")
+  status                 String
+  totalNetworkRanges     Int          @default(0) @map("total_network_ranges")
+  processedNetworkRanges Int          @default(0) @map("processed_network_ranges")
+  totalIpsDiscovered     Int          @default(0) @map("total_ips_discovered")
+  totalPortsScanned      Int          @default(0) @map("total_ports_scanned")
+  liveWebServersFound    Int          @default(0) @map("live_web_servers_found")
+  errorMessage           String?      @map("error_message") @db.Text
+  command                String?      @db.Text
+  executionTime          String?      @map("execution_time")
+  createdAt              DateTime     @default(now()) @map("created_at")
+  autoScanSessionId      String?      @map("auto_scan_session_id")
+
+  scopeTarget            ScopeTarget? @relation(fields: [scopeTargetId], references: [id], onDelete: Cascade)
+  discoveredLiveIps      DiscoveredLiveIp[]
+  liveWebServers         LiveWebServer[]
+
+  @@map("ip_port_scans")
+}
+
+model DiscoveredLiveIp {
+  id            String     @id @default(uuid())
+  scanId        String     @map("scan_id")
+  ipAddress     String     @map("ip_address")
+  hostname      String?
+  networkRange  String     @map("network_range")
+  pingTimeMs    Float?     @map("ping_time_ms")
+  discoveredAt  DateTime   @default(now()) @map("discovered_at")
+
+  ipPortScan    IpPortScan @relation(fields: [scanId], references: [scanId], onDelete: Cascade)
+
+  @@map("discovered_live_ips")
+}
+
+model LiveWebServer {
+  id                 String     @id @default(uuid())
+  scanId             String     @map("scan_id")
+  ipAddress          String     @map("ip_address")
+  hostname           String?
+  port               Int
+  protocol           String
+  url                String
+  statusCode         Int?       @map("status_code")
+  title              String?
+  serverHeader       String?    @map("server_header")
+  contentLength      BigInt?    @map("content_length")
+  technologies       Json?
+  responseTimeMs     Float?     @map("response_time_ms")
+  screenshotPath     String?    @map("screenshot_path")
+  sslInfo            Json?      @map("ssl_info")
+  httpResponseHeaders Json?     @map("http_response_headers")
+  findingsJson       Json?      @map("findings_json")
+  lastChecked        DateTime   @default(now()) @map("last_checked")
+
+  ipPortScan         IpPortScan @relation(fields: [scanId], references: [scanId], onDelete: Cascade)
+
+  @@unique([scanId, ipAddress, port, protocol])
+  @@map("live_web_servers")
+}
+
+// ===================
+// Nuclei Scans
+// ===================
+
+model NucleiScan {
+  id                String       @id @default(uuid())
+  scanId            String       @unique @default(uuid()) @map("scan_id")
+  scopeTargetId     String       @map("scope_target_id")
+  targets           String[]     @default([])
+  templates         String[]     @default([])
+  status            String       @default("pending")
+  result            String?      @db.Text
+  error             String?      @db.Text
+  stdout            String?      @db.Text
+  stderr            String?      @db.Text
+  command           String?      @db.Text
+  executionTime     String?      @map("execution_time")
+  createdAt         DateTime     @default(now()) @map("created_at")
+  updatedAt         DateTime     @default(now()) @map("updated_at")
+  autoScanSessionId String?      @map("auto_scan_session_id")
+
+  scopeTarget       ScopeTarget  @relation(fields: [scopeTargetId], references: [id], onDelete: Cascade)
+
+  @@map("nuclei_scans")
+}
+
+model NucleiConfig {
+  id                 String       @id @default(uuid())
+  scopeTargetId      String       @unique @map("scope_target_id")
+  targets            String[]     @default([])
+  templates          String[]     @default([])
+  severities         String[]     @default(["critical", "high", "medium", "low", "info"])
+  uploadedTemplates  Json         @default("[]") @map("uploaded_templates")
+  createdAt          DateTime     @default(now()) @map("created_at")
+
+  scopeTarget        ScopeTarget  @relation(fields: [scopeTargetId], references: [id], onDelete: Cascade)
+
+  @@map("nuclei_configs")
+}
+
+// ===================
+// URL Workflow Scans
+// ===================
+
+model KatanaUrlScan {
+  id            String       @id @default(uuid())
+  scanId        String       @unique @map("scan_id")
+  url           String
+  status        String
+  result        String?      @db.Text
+  error         String?      @db.Text
+  stdout        String?      @db.Text
+  stderr        String?      @db.Text
+  command       String?      @db.Text
+  executionTime String?      @map("execution_time")
+  createdAt     DateTime     @default(now()) @map("created_at")
+  scopeTargetId String?      @map("scope_target_id")
+
+  scopeTarget   ScopeTarget? @relation(fields: [scopeTargetId], references: [id], onDelete: Cascade)
+
+  @@map("katana_url_scans")
+}
+
+model LinkFinderUrlScan {
+  id            String       @id @default(uuid())
+  scanId        String       @unique @map("scan_id")
+  url           String
+  status        String
+  result        String?      @db.Text
+  error         String?      @db.Text
+  stdout        String?      @db.Text
+  stderr        String?      @db.Text
+  command       String?      @db.Text
+  executionTime String?      @map("execution_time")
+  createdAt     DateTime     @default(now()) @map("created_at")
+  scopeTargetId String?      @map("scope_target_id")
+
+  scopeTarget   ScopeTarget? @relation(fields: [scopeTargetId], references: [id], onDelete: Cascade)
+
+  @@map("linkfinder_url_scans")
+}
+
+model WaybackUrlsScan {
+  id            String       @id @default(uuid())
+  scanId        String       @unique @map("scan_id")
+  url           String
+  status        String
+  result        String?      @db.Text
+  error         String?      @db.Text
+  stdout        String?      @db.Text
+  stderr        String?      @db.Text
+  command       String?      @db.Text
+  executionTime String?      @map("execution_time")
+  createdAt     DateTime     @default(now()) @map("created_at")
+  scopeTargetId String?      @map("scope_target_id")
+
+  scopeTarget   ScopeTarget? @relation(fields: [scopeTargetId], references: [id], onDelete: Cascade)
+
+  @@map("waybackurls_scans")
+}
+
+model GauUrlScan {
+  id            String       @id @default(uuid())
+  scanId        String       @unique @map("scan_id")
+  url           String
+  status        String
+  result        String?      @db.Text
+  error         String?      @db.Text
+  stdout        String?      @db.Text
+  stderr        String?      @db.Text
+  command       String?      @db.Text
+  executionTime String?      @map("execution_time")
+  createdAt     DateTime     @default(now()) @map("created_at")
+  scopeTargetId String?      @map("scope_target_id")
+
+  scopeTarget   ScopeTarget? @relation(fields: [scopeTargetId], references: [id], onDelete: Cascade)
+
+  @@map("gau_url_scans")
+}
+
+model FfufUrlScan {
+  id            String       @id @default(uuid())
+  scanId        String       @unique @map("scan_id")
+  url           String
+  status        String
+  result        String?      @db.Text
+  error         String?      @db.Text
+  stdout        String?      @db.Text
+  stderr        String?      @db.Text
+  command       String?      @db.Text
+  executionTime String?      @map("execution_time")
+  createdAt     DateTime     @default(now()) @map("created_at")
+  scopeTargetId String?      @map("scope_target_id")
+
+  scopeTarget   ScopeTarget? @relation(fields: [scopeTargetId], references: [id], onDelete: Cascade)
+
+  @@map("ffuf_url_scans")
+}
+
+// ===================
+// FFUF Configuration
+// ===================
+
+model FfufConfig {
+  id            String       @id @default(uuid())
+  scopeTargetId String       @unique @map("scope_target_id")
+  config        Json
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @default(now()) @map("updated_at")
+
+  scopeTarget   ScopeTarget  @relation(fields: [scopeTargetId], references: [id], onDelete: Cascade)
+
+  @@map("ffuf_configs")
+}
+
+model FfufWordlist {
+  id        String   @id @default(uuid())
+  name      String
+  path      String
+  size      Int      @default(0)
+  fileSize  BigInt   @default(0) @map("file_size")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("ffuf_wordlists")
+}
+
+// ===================
+// Consolidated Results
+// ===================
+
+model ConsolidatedSubdomain {
+  id            String       @id @default(uuid())
+  scopeTargetId String       @map("scope_target_id")
+  subdomain     String
+  createdAt     DateTime     @default(now()) @map("created_at")
+
+  scopeTarget   ScopeTarget  @relation(fields: [scopeTargetId], references: [id], onDelete: Cascade)
+
+  @@unique([scopeTargetId, subdomain])
+  @@map("consolidated_subdomains")
+}
+
+model ConsolidatedCompanyDomain {
+  id            String       @id @default(uuid())
+  scopeTargetId String       @map("scope_target_id")
+  domain        String
+  source        String
+  createdAt     DateTime     @default(now()) @map("created_at")
+
+  scopeTarget   ScopeTarget  @relation(fields: [scopeTargetId], references: [id], onDelete: Cascade)
+
+  @@unique([scopeTargetId, domain])
+  @@map("consolidated_company_domains")
+}
+
+model ConsolidatedNetworkRange {
+  id            String       @id @default(uuid())
+  scopeTargetId String       @map("scope_target_id")
+  cidrBlock     String       @map("cidr_block")
+  asn           String?
+  organization  String?
+  description   String?
+  country       String?
+  source        String
+  scanType      String       @map("scan_type")
+  createdAt     DateTime     @default(now()) @map("created_at")
+
+  scopeTarget   ScopeTarget  @relation(fields: [scopeTargetId], references: [id], onDelete: Cascade)
+
+  @@unique([scopeTargetId, cidrBlock, source])
+  @@map("consolidated_network_ranges")
+}
+
+// ===================
+// Attack Surface Assets
+// ===================
+
+enum AttackSurfaceAssetType {
+  asn
+  network_range
+  ip_address
+  live_web_server
+  cloud_asset
+  fqdn
+}
+
+model ConsolidatedAttackSurfaceAsset {
+  id              String                   @id @default(uuid())
+  scopeTargetId   String                   @map("scope_target_id")
+  assetType       AttackSurfaceAssetType   @map("asset_type")
+  assetIdentifier String                   @map("asset_identifier")
+  assetSubtype    String?                  @map("asset_subtype")
+  
+  // ASN fields
+  asnNumber       String?                  @map("asn_number")
+  asnOrganization String?                  @map("asn_organization")
+  asnDescription  String?                  @map("asn_description")
+  asnCountry      String?                  @map("asn_country")
+  
+  // Network range fields
+  cidrBlock       String?                  @map("cidr_block")
+  subnetSize      Int?                     @map("subnet_size")
+  responsiveIpCount Int?                   @map("responsive_ip_count")
+  responsivePortCount Int?                 @map("responsive_port_count")
+  
+  // IP address fields
+  ipAddress       String?                  @map("ip_address")
+  ipType          String?                  @map("ip_type")
+  dnsxARecords    String[]                 @map("dnsx_a_records")
+  amassARecords   String[]                 @map("amass_a_records")
+  httpxSources    String[]                 @map("httpx_sources")
+  
+  // Live web server fields
+  url             String?
+  domain          String?
+  port            Int?
+  protocol        String?
+  statusCode      Int?                     @map("status_code")
+  title           String?
+  webServer       String?                  @map("web_server")
+  technologies    String[]
+  contentLength   Int?                     @map("content_length")
+  responseTimeMs  Float?                   @map("response_time_ms")
+  screenshotPath  String?                  @map("screenshot_path")
+  sslInfo         Json?                    @map("ssl_info")
+  httpResponseHeaders Json?                @map("http_response_headers")
+  findingsJson    Json?                    @map("findings_json")
+  
+  // Cloud asset fields
+  cloudProvider   String?                  @map("cloud_provider")
+  cloudServiceType String?                 @map("cloud_service_type")
+  cloudRegion     String?                  @map("cloud_region")
+  
+  // FQDN fields
+  fqdn            String?
+  rootDomain      String?                  @map("root_domain")
+  subdomain       String?
+  registrar       String?
+  creationDate    DateTime?                @map("creation_date")
+  expirationDate  DateTime?                @map("expiration_date")
+  nameServers     String[]                 @map("name_servers")
+  whoisInfo       Json?                    @map("whois_info")
+  sslCertificate  Json?                    @map("ssl_certificate")
+  sslExpiryDate   DateTime?                @map("ssl_expiry_date")
+  sslIssuer       String?                  @map("ssl_issuer")
+  resolvedIps     String[]                 @map("resolved_ips")
+  mailServers     String[]                 @map("mail_servers")
+  spfRecord       String?                  @map("spf_record")
+  dkimRecord      String?                  @map("dkim_record")
+  dmarcRecord     String?                  @map("dmarc_record")
+  txtRecords      String[]                 @map("txt_records")
+  mxRecords       String[]                 @map("mx_records")
+  nsRecords       String[]                 @map("ns_records")
+  aRecords        String[]                 @map("a_records")
+  aaaaRecords     String[]                 @map("aaaa_records")
+  cnameRecords    String[]                 @map("cname_records")
+  soaRecord       Json?                    @map("soa_record")
+  lastDnsScan     DateTime?                @map("last_dns_scan")
+  lastSslScan     DateTime?                @map("last_ssl_scan")
+  lastWhoisScan   DateTime?                @map("last_whois_scan")
+  
+  // Common fields
+  lastUpdated     DateTime                 @default(now()) @map("last_updated")
+  createdAt       DateTime                 @default(now()) @map("created_at")
+
+  scopeTarget     ScopeTarget              @relation(fields: [scopeTargetId], references: [id], onDelete: Cascade)
+  
+  // Relations
+  childRelationships  AttackSurfaceRelationship[] @relation("ParentAsset")
+  parentRelationships AttackSurfaceRelationship[] @relation("ChildAsset")
+  dnsRecords          AttackSurfaceDnsRecord[]
+  metadata            AttackSurfaceMetadata[]
+
+  @@unique([scopeTargetId, assetType, assetIdentifier])
+  @@index([scopeTargetId])
+  @@index([assetType])
+  @@index([ipAddress])
+  @@index([domain])
+  @@index([fqdn])
+  @@map("consolidated_attack_surface_assets")
+}
+
+model AttackSurfaceRelationship {
+  id               String                        @id @default(uuid())
+  parentAssetId    String                        @map("parent_asset_id")
+  childAssetId     String                        @map("child_asset_id")
+  relationshipType String                        @map("relationship_type")
+  relationshipData Json?                         @map("relationship_data")
+  createdAt        DateTime                      @default(now()) @map("created_at")
+
+  parentAsset      ConsolidatedAttackSurfaceAsset @relation("ParentAsset", fields: [parentAssetId], references: [id], onDelete: Cascade)
+  childAsset       ConsolidatedAttackSurfaceAsset @relation("ChildAsset", fields: [childAssetId], references: [id], onDelete: Cascade)
+
+  @@unique([parentAssetId, childAssetId, relationshipType])
+  @@map("consolidated_attack_surface_relationships")
+}
+
+model AttackSurfaceDnsRecord {
+  id          String                        @id @default(uuid())
+  assetId     String                        @map("asset_id")
+  recordType  String                        @map("record_type")
+  recordValue String                        @map("record_value")
+  ttl         Int?
+  createdAt   DateTime                      @default(now()) @map("created_at")
+
+  asset       ConsolidatedAttackSurfaceAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@unique([assetId, recordType, recordValue])
+  @@map("consolidated_attack_surface_dns_records")
+}
+
+model AttackSurfaceMetadata {
+  id            String                        @id @default(uuid())
+  assetId       String                        @map("asset_id")
+  metadataType  String                        @map("metadata_type")
+  metadataKey   String                        @map("metadata_key")
+  metadataValue String?                       @map("metadata_value")
+  metadataJson  Json?                         @map("metadata_json")
+  createdAt     DateTime                      @default(now()) @map("created_at")
+
+  asset         ConsolidatedAttackSurfaceAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@unique([assetId, metadataType, metadataKey])
+  @@map("consolidated_attack_surface_metadata")
+}
+
+// ===================
+// Threat Model & Notes
+// ===================
+
+model ThreatModel {
+  id                     String       @id @default(uuid())
+  scopeTargetId          String       @map("scope_target_id")
+  category               String
+  url                    String
+  mechanism              String?
+  targetObject           String?      @map("target_object")
+  steps                  String?      @db.Text
+  securityControls       String?      @map("security_controls") @db.Text
+  impactCustomerData     String?      @map("impact_customer_data") @db.Text
+  impactAttackerScope    String?      @map("impact_attacker_scope") @db.Text
+  impactCompanyReputation String?     @map("impact_company_reputation") @db.Text
+  createdAt              DateTime     @default(now()) @map("created_at")
+  updatedAt              DateTime     @default(now()) @map("updated_at")
+
+  scopeTarget            ScopeTarget  @relation(fields: [scopeTargetId], references: [id], onDelete: Cascade)
+
+  @@map("threat_model")
+}
+
+model NotableObject {
+  id            String       @id @default(uuid())
+  scopeTargetId String       @map("scope_target_id")
+  objectName    String       @map("object_name")
+  objectJson    String?      @map("object_json") @db.Text
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @default(now()) @map("updated_at")
+
+  scopeTarget   ScopeTarget  @relation(fields: [scopeTargetId], references: [id], onDelete: Cascade)
+
+  @@unique([scopeTargetId, objectName])
+  @@map("notable_objects")
+}
+
+model SecurityControlNote {
+  id            String       @id @default(uuid())
+  scopeTargetId String       @map("scope_target_id")
+  controlName   String       @map("control_name")
+  note          String       @db.Text
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @default(now()) @map("updated_at")
+
+  scopeTarget   ScopeTarget  @relation(fields: [scopeTargetId], references: [id], onDelete: Cascade)
+
+  @@map("security_controls_notes")
+}
+
+model ApplicationQuestion {
+  id            String       @id @default(uuid())
+  scopeTargetId String       @map("scope_target_id")
+  question      String       @db.Text
+  answer        String       @db.Text
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @default(now()) @map("updated_at")
+
+  scopeTarget   ScopeTarget  @relation(fields: [scopeTargetId], references: [id], onDelete: Cascade)
+
+  @@map("application_questions_answers")
+}
+
+model MechanismExample {
+  id            String       @id @default(uuid())
+  scopeTargetId String       @map("scope_target_id")
+  mechanism     String
+  url           String
+  notes         String?      @db.Text
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @default(now()) @map("updated_at")
+
+  scopeTarget   ScopeTarget  @relation(fields: [scopeTargetId], references: [id], onDelete: Cascade)
+
+  @@map("mechanisms_examples")
+}
+
+// ===================
+// Google Dorking & Reverse Whois
+// ===================
+
+model GoogleDorkingDomain {
+  id            String       @id @default(uuid())
+  scopeTargetId String       @map("scope_target_id")
+  domain        String
+  createdAt     DateTime     @default(now()) @map("created_at")
+
+  scopeTarget   ScopeTarget  @relation(fields: [scopeTargetId], references: [id], onDelete: Cascade)
+
+  @@unique([scopeTargetId, domain])
+  @@map("google_dorking_domains")
+}
+
+model ReverseWhoisDomain {
+  id            String       @id @default(uuid())
+  scopeTargetId String       @map("scope_target_id")
+  domain        String
+  createdAt     DateTime     @default(now()) @map("created_at")
+
+  scopeTarget   ScopeTarget  @relation(fields: [scopeTargetId], references: [id], onDelete: Cascade)
+
+  @@unique([scopeTargetId, domain])
+  @@map("reverse_whois_domains")
 }
