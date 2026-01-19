@@ -1,12 +1,20 @@
 import { Controller, Get } from '@nestjs/common';
-import { AppService } from './app.service';
 
 @Controller()
 export class AppController {
-  constructor(private readonly appService: AppService) {}
-
   @Get()
-  getHello(): string {
-    return this.appService.getHello();
+  getHealth() {
+    return {
+      name: 'ASM-Hawk API',
+      version: '1.0.0',
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      endpoints: {
+        auth: '/api/auth',
+        users: '/api/users',
+        assets: '/api/assets',
+      },
+    };
   }
 }
+

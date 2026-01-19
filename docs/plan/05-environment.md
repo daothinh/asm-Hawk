@@ -45,7 +45,7 @@ SHODAN_API_KEY=""
 | redis | 6379 | redis:alpine |
 | nginx | 80, 443 | nginx:alpine |
 | api | 3000 | Built from docker/api.Dockerfile |
-| scanner | - | Built from docker/scanner.Dockerfile |
+| recon | - | Built from docker/recon.Dockerfile |
 | workers | - | Built from docker/workers.Dockerfile |
 | web | 3001 | Built from docker/web.Dockerfile |
 

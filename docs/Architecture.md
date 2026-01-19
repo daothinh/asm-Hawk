@@ -81,26 +81,7 @@ flowchart TB
 | Python TI | `vt-py`, `censys-python` | API clients |
 | DB Sync | PeerDB / ClickPipes | CDC replication |
 
-## Project Structure
 
-```
-asm-hawk/
-├── api/                    # NestJS API Server
-│   ├── src/modules/        # Feature modules
-│   ├── src/jobs/           # BullMQ processors
-│   └── prisma/             # DB schema
-├── scanner/                # Go Core Engine
-│   ├── cmd/scanner/        # Entry point
-│   └── internal/           # Core packages
-├── workers/                # Python TI Workers
-│   └── src/                # Worker modules
-├── web/                    # React/Next.js Frontend
-├── docker/                 # Dockerfiles
-├── nginx/                  # Reverse proxy
-├── redis/                  # Redis config
-├── docker-compose.yml
-└── docs/
-```
 
 ## Related Docs
 - [Database](Database.md)

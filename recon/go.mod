@@ -1,4 +1,4 @@
-module github.com/asm-hawk/scanner
+module github.com/asm-hawk/recon
 
 go 1.22
 

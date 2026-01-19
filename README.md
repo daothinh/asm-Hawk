@@ -16,13 +16,6 @@ ASM-Hawk là giải pháp tự động hóa quá trình theo dõi, phân tích v
 | Queue | Redis + BullMQ |
 | Database | PostgreSQL + ClickHouse |
 
-## Tính năng trọng tâm
-- **Phát hiện tài sản (Discovery):** Tự động hóa việc mapping subdomain, IP và các tài sản số liên quan từ các nguồn dữ liệu công khai.
-- **Định danh chuyên sâu:** Sử dụng vân tay JARM và phân tích Service Fingerprinting để nhận diện sớm các hạ tầng nghi ngờ (C2, Phishing).
-- **Làm giàu dữ liệu (Enrichment):** Kết hợp dữ liệu thời gian thực từ VirusTotal, URLScan.io, Censys và AbuseIPDB để tăng độ chính xác của phân tích.
-- **Xác thực tự động (Validation):** Cơ chế kiểm tra khả năng khai thác lỗi giúp loại bỏ gánh nặng về cảnh báo giả (False Positive).
-- **Đánh giá rủi ro (Risk Scoring):** Mô hình tính điểm ưu tiên dựa trên sự tương quan giữa thông tin trinh sát nội bộ và dữ liệu Threat Intel bên ngoài.
-
 ## Documentation
 - [Kiến trúc hệ thống (Architecture)](docs/Architecture.md)
 - [Database Schema](docs/Database.md)

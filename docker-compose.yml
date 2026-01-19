@@ -87,11 +87,11 @@ services:
       - ./api:/app
       - /app/node_modules
 
-  scanner:
+  recon:
     build:
-      context: ./scanner
-      dockerfile: ../docker/scanner.Dockerfile
-    container_name: asm-hawk-scanner
+      context: ./recon
+      dockerfile: ../docker/recon.Dockerfile
+    container_name: asm-hawk-recon
     environment:
       - REDIS_HOST=redis
       - REDIS_PORT=6379

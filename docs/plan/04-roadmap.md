@@ -1,118 +1,142 @@
 # 04 - Development Roadmap
 
-## Timeline: 5-6 Months
+
+Lộ trình phát triển ASM-Hawk theo 5 giai đoạn
+
+> **Cập nhật lần cuối:** 2026-01-19
 
 ---
 
-## Phase 1: Foundation (Month 1-2) ✅ IN PROGRESS
+## Tổng Quan Tiến Độ
 
-### Objectives
-- [x] Setup PostgreSQL + Prisma 7
-- [x] NestJS API với JWT Auth, RBAC
-- [ ] Run migrations với PostgreSQL
-- [ ] Basic React Dashboard
-- [x] Redis + BullMQ job queue
-
-### Deliverables
-- NestJS API server with Auth, Users, Assets modules
-- Database schema with 7 models
-- Docker configs for all services
-
-### Blockers
-- Prisma 7.2.0 requires PostgreSQL running with `DATABASE_URL`
+| Phase | Tên | Thời gian | Trạng thái |
+|-------|-----|-----------|------------|
+| 1 | Foundation | Month 1-2 |  Đang triển khai |
+| 2 | Core Scanning | Month 2-3 | ⏳ Chưa bắt đầu |
+| 3 | Threat Intelligence | Month 3-4 | ⏳ Chưa bắt đầu |
+| 4 | Attack Verification | Month 4-5 | ⏳ Chưa bắt đầu |
+| 5 | Production | Month 5-6 | ⏳ Chưa bắt đầu |
 
 ---
 
-## Phase 2: Core Scanning (Month 2-3)
+## Phase 1: Foundation
 
-### Objectives
-- [ ] Go Port Scanner với goroutines
-- [ ] Go JARM Fingerprinting (hdm/jarm-go)
-- [ ] OSINT Module (subdomain enumeration)
-- [ ] Integration with Redis queue
+Xây dựng nền tảng cơ bản: database, API server, authentication và dashboard.
 
-### Key Components
-```go
-// scanner/internal/portscan/scanner.go
-type Scanner struct {
-    workers   int
-    timeout   time.Duration
-    resultCh  chan ScanResult
-}
+### Database Layer
+- [x] Setup PostgreSQL database
+- [x] Thiết kế Prisma schema (User, Asset, ReconResult, AttackResult, ExternalIntel, RiskTag)
+- [x] Migrations và seed data
+- [ ] Setup ClickHouse với PeerDB CDC
 
-// scanner/internal/jarm/fingerprint.go
-type JARMFingerprint struct {
-    Hash      string
-    Signature string
-}
-```
+### API Server (NestJS)
+- [x] Project structure và app module
+- [x] Prisma service integration
+- [x] JWT Authentication
+- [x] Role-Based Access Control (RBAC)
+- [x] Auth module (register, login, me)
+- [x] Users module (CRUD, role management)
+- [x] Assets module (CRUD, search, stats)
+- [x] Swagger API documentation
 
----
+### Web Dashboard (Next.js)
+- [x] Project setup với Next.js 15
+- [x] Authentication pages (login, register)
+- [x] Dashboard layout với sidebar
+- [x] Assets list page với pagination
 
-## Phase 3: Threat Intelligence (Month 3-4)
-
-### Objectives
-- [ ] Python VirusTotal worker
-- [ ] Python URLScan/Censys workers
-- [ ] Risk Score calculation
-- [ ] Caching layer (24h TTL)
-
-### Key Components
-```python
-# workers/src/virustotal/worker.py
-class VirusTotalWorker:
-    async def check_domain(self, domain: str) -> dict:
-        # Query VT API
-        # Cache response
-        # Return reputation data
-
-# workers/src/risk_scorer/scorer.py
-class RiskScorer:
-    def calculate_score(self, asset: Asset, intel: List[Intel]) -> float:
-        # ML-based scoring algorithm
-```
+### Infrastructure
+- [x] Docker configurations (API, Recon, Workers, Web)
+- [x] docker-compose.yml cho local dev
+- [x] Nginx reverse proxy config
+- [x] Redis config file
+- [ ] Redis + BullMQ job queue integration (pending)
 
 ---
 
-## Phase 4: Attack Verification (Month 4-5)
+## Phase 2: Core Scanning ⏳
 
-### Objectives
-- [ ] Attack verification engine
-- [ ] Alert & notification system
-- [ ] Dashboard analytics với ClickHouse
-- [ ] Real-time WebSocket updates
+Engine quét và fingerprinting viết bằng Go.
 
-### Key Features
-- Automated exploit verification
-- False positive elimination
-- Alert thresholds and escalation
+### Port Scanner
+- [ ] Go port scanner với goroutines
+- [ ] TCP/UDP scanning
+- [ ] Service detection
+- [ ] Rate limiting và timeout handling
 
----
+### JARM Fingerprinting
+- [ ] Integrate hdm/jarm-go library
+- [ ] C2/Phishing infrastructure detection
+- [ ] Fingerprint database
 
-## Phase 5: Production (Month 5-6)
-
-### Objectives
-- [ ] Multi-tenant isolation (RLS)
-- [ ] Performance optimization
-- [ ] End-to-end testing
-- [ ] Documentation & deployment
-- [ ] CI/CD pipelines
-
-### Production Checklist
-- [ ] Kubernetes deployment configs
-- [ ] Monitoring (Prometheus + Grafana)
-- [ ] Logging (ELK stack)
-- [ ] Backup strategy
-- [ ] Security audit
+### OSINT Module
+- [ ] Subdomain enumeration
+- [ ] DNS resolution
+- [ ] Certificate transparency logs
 
 ---
 
-## Milestones
+## Phase 3: Threat Intelligence ⏳
 
-| Milestone | Target Date | Status |
-|-----------|-------------|--------|
-| API Foundation | End Month 1 | ✅ Complete |
-| Go Scanner MVP | End Month 2 | 🔲 Pending |
-| TI Integration | End Month 3 | 🔲 Pending |
-| Full Platform | End Month 5 | 🔲 Pending |
-| Production Ready | End Month 6 | 🔲 Pending |
+Python workers tích hợp các nguồn TI bên ngoài.
+
+### TI Workers
+- [ ] VirusTotal integration worker
+- [ ] URLScan.io integration worker
+- [ ] Censys integration worker
+- [ ] AbuseIPDB integration worker
+
+### Risk Scoring
+- [ ] Risk score calculation engine
+- [ ] Multi-source correlation
+- [ ] Confidence scoring
+
+---
+
+## Phase 4: Attack Verification ⏳
+
+Engine xác thực exploit và hệ thống cảnh báo.
+
+### Verification Engine
+- [ ] Exploit verification module
+- [ ] Safe exploitation checks
+- [ ] Evidence collection
+
+### Alerting System
+- [ ] Alert generation logic
+- [ ] Notification channels (Email, Slack, Webhook)
+- [ ] Alert dashboard
+
+### Analytics
+- [ ] ClickHouse analytics queries
+- [ ] Dashboard charts và reports
+- [ ] Historical trend analysis
+
+---
+
+## Phase 5: Production ⏳
+
+Tối ưu hóa, bảo mật và deploy production.
+
+### Multi-tenancy
+- [ ] Row-Level Security (RLS) implementation
+- [ ] Tenant isolation
+- [ ] Organization management
+
+### Performance
+- [ ] Database query optimization
+- [ ] Caching strategies
+- [ ] Load testing
+
+### Documentation & Deployment
+- [ ] API documentation hoàn chỉnh
+- [ ] User guide
+- [ ] Deployment scripts (Docker/K8s)
+- [ ] CI/CD pipeline
+
+---
+
+## References
+
+- [05 - Phase 1 Status](05-phase1-status.md) - Chi tiết implementation Phase 1
+- [07 - API Reference](07-api-reference.md) - API endpoints documentation

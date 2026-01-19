@@ -74,3 +74,81 @@ Hệ thống sử dụng cơ chế **Correlate (Đối soát chéo)**:
 ## 3. Vòng lặp liên tục
 *   Tự động kích hoạt lại OSINT khi có sự thay đổi về dải IP hoặc tên miền con mới.
 *   Tự động điều chỉnh tần suất quét (Frequency) dựa trên `Risk Score`: Tài sản có điểm rủi ro cao sẽ được Enrichment và Recon thường xuyên hơn.
+
+## 4. Hybrid Scan
+
+### Sơ đồ Kiến trúc Hệ thống
+
+```mermaid
+flowchart TB
+    %% ========= FRONTEND LAYER =========
+    subgraph Frontend["Frontend Layer"]
+        FE[React/Next.js Dashboard]
+    end
+
+    %% ========= API LAYER - NestJS =========
+    subgraph APILayer["API Layer - NestJS"]
+        API[REST API]
+        API --> WS[WebSocket Notifications]
+        API --> AUTH[Auth/JWT + RBAC]
+        API --> PRISMA[Prisma ORM]
+    end
+
+    %% ========= MESSAGE QUEUE =========
+    subgraph MQ["Message Queue"]
+        REDIS[Redis + BullMQ]
+        REDIS --> SCHEDULER[Job Scheduler]
+    end
+
+    %% ========= TI WORKERS - PYTHON =========
+    subgraph TIWorkers["TI Workers - Python"]
+        VT[VirusTotal - vt-py]
+        URL[URLScan.io]
+        CENSYS[Censys - censys-python]
+        RISK[Risk Scorer ML]
+    end
+
+    %% ========= DATA LAYER =========
+    subgraph DataLayer["Data Layer"]
+        PG[(PostgreSQL - Primary)]
+    end
+
+    %% ========= CORE ENGINE - GO =========
+    subgraph CoreEngine["Core Engine - Go"]
+        OSINT[OSINT Scanner]
+        PORT[Port Scanner - goroutines]
+        JARM[JARM Fingerprint - hdm/jarm]
+        ATTACK[Attack Verifier]
+    end
+
+    %% ========= CDC & ANALYTICS =========
+    PEERDB[PeerDB CDC Sync]
+    CH[(ClickHouse - Analytics)]
+
+    %% ========= MAIN CONNECTIONS =========
+    FE --> API
+    API --> REDIS
+
+    %% TI Workers receive jobs from Redis
+    REDIS --> TIWorkers
+
+    %% TI Workers write to PostgreSQL
+    TIWorkers --> PG
+
+    %% Job Scheduler triggers Core Engine
+    SCHEDULER --> CoreEngine
+
+    %% Core Engine writes to PostgreSQL
+    CoreEngine --> PG
+
+    %% Prisma ORM connects to PostgreSQL
+    PRISMA --> PG
+
+    %% CDC Sync from PostgreSQL to ClickHouse
+    PG --> PEERDB
+    PEERDB --> CH
+
+    %% Core Engine also writes to ClickHouse
+    CoreEngine --> CH
+```
+

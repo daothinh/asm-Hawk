@@ -79,44 +79,100 @@ flowchart TB
 
 ```
 asm-hawk/
-├── api/                    # NestJS API Server
+├── server/                     # NestJS API Server
 │   ├── src/
+│   │   ├── app.module.ts
+│   │   ├── main.ts
 │   │   ├── modules/
-│   │   │   ├── auth/       # JWT + RBAC
-│   │   │   ├── users/      # User management
-│   │   │   ├── assets/     # Asset CRUD
-│   │   │   ├── scans/      # Scan orchestration
-│   │   │   ├── alerts/     # Alert management
-│   │   │   └── dashboard/  # Analytics endpoints
-│   │   ├── jobs/           # BullMQ processors
-│   │   └── prisma/         # DB service
-│   ├── prisma/schema.prisma
-│   └── package.json
+│   │   │   ├── auth/           # JWT + RBAC
+│   │   │   ├── users/          # User management
+│   │   │   ├── assets/         # Asset CRUD
+│   │   │   ├── scans/          # Scan orchestration
+│   │   │   ├── alerts/         # Alert management
+│   │   │   └── dashboard/      # Analytics endpoints
+│   │   ├── jobs/               # BullMQ job processors
+│   │   │   ├── scan.processor.ts
+│   │   │   └── intel.processor.ts
+│   │   ├── common/             # Shared utilities
+│   │   │   ├── guards/
+│   │   │   ├── decorators/
+│   │   │   └── filters/
+│   │   └── config/             # App configuration
+│   ├── prisma/
+│   │   ├── schema.prisma       # DB schema
+│   │   └── migrations/
+│   ├── test/
+│   ├── package.json
+│   └── tsconfig.json
 │
-├── scanner/                # Go Core Engine
-│   ├── cmd/scanner/main.go
+├── recon/                    # [NEW] Go Core Engine
+│   ├── cmd/
+│   │   └── recon/
+│   │       └── main.go
 │   ├── internal/
-│   │   ├── osint/
-│   │   ├── portscan/
-│   │   ├── jarm/
-│   │   ├── attack/
-│   │   └── queue/
-│   └── go.mod
+│   │   ├── osint/              # Subdomain enum
+│   │   ├── portscan/           # Port scanner
+│   │   ├── jarm/               # JARM fingerprint
+│   │   ├── attack/             # Attack verification
+│   │   └── queue/              # Redis queue client
+│   ├── pkg/                    # Reusable packages
+│   ├── go.mod
+│   └── go.sum
 │
-├── workers/                # Python TI Workers
+├── workers/                    # [NEW] Python TI Workers
 │   ├── src/
 │   │   ├── virustotal/
+│   │   │   └── worker.py
 │   │   ├── urlscan/
+│   │   │   └── worker.py
 │   │   ├── censys/
-│   │   ├── risk_scorer/
+│   │   │   └── worker.py
+│   │   ├── risk_scorer/        # ML model
+│   │   │   └── scorer.py
 │   │   └── common/
-│   └── requirements.txt
+│   │       └── queue.py        # Redis queue client
+│   ├── tests/
+│   ├── requirements.txt
+│   └── pyproject.toml
 │
-├── web/                    # React/Next.js Frontend
-│   └── src/
+├── web/                        # React/Next.js Frontend
+│   ├── src/
+│   │   ├── app/                # Next.js App Router
+│   │   ├── components/
+│   │   ├── lib/
+│   │   ├── hooks/
+│   │   └── styles/
+│   ├── public/
+│   ├── package.json
+│   └── next.config.js
 │
-├── docker/                 # Dockerfiles
-├── nginx/                  # Reverse proxy
-├── redis/                  # Redis config
-└── docs/                   # Documentation
+├── nginx/                      # Reverse Proxy
+│   ├── nginx.conf
+│   └── conf.d/
+│       └── default.conf
+│
+├── redis/                      # Redis Config
+│   └── redis.conf
+│
+├── docker/                     # [NEW] Docker configs
+│   ├── server.Dockerfile
+│   ├── recon.Dockerfile
+│   ├── workers.Dockerfile
+│   └── web.Dockerfile
+│
+├── docs/                       # Documentation
+│   ├── Architecture.md
+│   ├── Database.md
+│   ├── Workflow.md
+│   └── Sequence.md
+│
+├── .github/                    # [NEW] CI/CD
+│   └── workflows/
+│       └── ci.yml
+│
+├── docker-compose.yml          # [NEW] Local dev
+├── docker-compose.prod.yml     # [NEW] Production
+├── .env.example                # [NEW] Environment template
+├── .gitignore
+└── README.md
 ```
