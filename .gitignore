@@ -249,3 +249,21 @@ public/uploads/
 *.zip
 *.rar
 *.7z
+
+# ============================================
+# Project Specific
+# ============================================
+# NestJS API dist folder (TypeScript compiled output)
+api/dist/
+
+# Recon engine binary
+recon/recon-engine
+recon/recon-engine.exe
+
+# Prisma engine binaries (auto-downloaded)
+api/node_modules/.prisma/
+web/node_modules/.prisma/
+
+# Local development overrides
+docker-compose.local.yml
+docker-compose.dev.yml

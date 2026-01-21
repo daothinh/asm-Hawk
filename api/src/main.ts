@@ -16,11 +16,11 @@ async function bootstrap() {
   );
 
   app.enableCors({
-    origin: process.env.CORS_ORIGIN || 'http://localhost:3001',
+    origin: process.env.CORS_ORIGIN || 'http://localhost:3101',
     credentials: true,
   });
 
-  const port = process.env.PORT || 3000;
+  const port = process.env.PORT || 3100;
   await app.listen(port);
   console.log(`🚀 ASM-Hawk API running on http://localhost:${port}/api`);
 }

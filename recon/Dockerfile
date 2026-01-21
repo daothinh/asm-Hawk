@@ -1,10 +1,7 @@
-FROM golang:1.22-alpine
+FROM golang:1.23-alpine
 
-# Install required packages
-RUN apk add --no-cache git gcc musl-dev docker
-
-# Install httpx
-RUN go install -v github.com/projectdiscovery/httpx/cmd/httpx@latest
+# Install required packages (docker CLI for exec into tool containers)
+RUN apk add --no-cache git gcc musl-dev docker-cli
 
 WORKDIR /app
 

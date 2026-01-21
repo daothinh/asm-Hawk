@@ -84,8 +84,9 @@ services:
       - DATABASE_URL=postgresql://postgres:password@postgres:5432/asm_hawk
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - PORT=3100
     ports:
-      - "3000:3000"
+      - "3100:3100"
     depends_on:
       postgres:
         condition: service_healthy
@@ -150,9 +151,9 @@ services:
       dockerfile: ../docker/web.Dockerfile
     container_name: asm-hawk-web
     environment:
-      - NEXT_PUBLIC_API_URL=http://api:3000
+      - NEXT_PUBLIC_API_URL=http://localhost:3100
     ports:
-      - "3001:3000"
+      - "3101:3101"
     depends_on:
       - api
     networks:

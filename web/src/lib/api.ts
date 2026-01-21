@@ -1,6 +1,6 @@
 // API Client for ASM-Hawk
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3100';
 
 interface ApiResponse<T> {
     data?: T;
@@ -43,13 +43,13 @@ async function fetchApi<T>(
 // Auth API
 export const authApi = {
     login: (email: string, password: string) =>
-        fetchApi<{ access_token: string }>('/api/auth/login', {
+        fetchApi<{ accessToken: string }>('/api/auth/login', {
             method: 'POST',
             body: JSON.stringify({ email, password }),
         }),
 
     register: (email: string, password: string, fullName?: string) =>
-        fetchApi<{ access_token: string }>('/api/auth/register', {
+        fetchApi<{ accessToken: string }>('/api/auth/register', {
             method: 'POST',
             body: JSON.stringify({ email, password, fullName }),
         }),

@@ -26,8 +26,8 @@ export default function RegisterPage() {
             return;
         }
 
-        if (data?.access_token) {
-            localStorage.setItem('token', data.access_token);
+        if (data?.accessToken) {
+            localStorage.setItem('token', data.accessToken);
             router.push('/dashboard');
         }
         setLoading(false);
