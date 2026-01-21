@@ -87,6 +87,7 @@ services:
       - PORT=3100
     ports:
       - "3100:3100"
+      - "51212:51212"  # Prisma Studio
     depends_on:
       postgres:
         condition: service_healthy

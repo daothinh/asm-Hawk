@@ -131,6 +131,14 @@ docker-compose up -d --build --force-recreate api
 | Analyst | analyst@asm-hawk.local | password123 |
 | Viewer | viewer@asm-hawk.local | password123 |
 
+## Prisma Studio (Database GUI)
+```bash
+# Start Prisma Studio in Docker container
+docker exec -d asm-hawk-api npx prisma studio --browser none
+
+# Access at: http://localhost:51212
+```
+
 ## Container Status Check
 ```bash
 docker ps --format "table {{.Names}}\t{{.Ports}}\t{{.Status}}" | Select-String "asm-hawk"
